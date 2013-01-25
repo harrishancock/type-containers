@@ -2,25 +2,44 @@
 #include <type_traits>
 #include <typeinfo>
 
+#include <string>
+#include <memory>
+#include <cxxabi.h>
+
 //////////////////////////////////////////////////////////////////////////////
 
 template <typename Head, typename...>
 struct variadic_head { using type = Head; };
 
+/* We need the template template parameter Container here, because it's
+ * impossible to make a variadic parameter pack typedef--some other templated
+ * type /must/ be used to contain the parameter pack. */
 template <template <typename...> class Container, typename, typename... Tail>
 struct variadic_tail { using type = Container<Tail...>; };
 
 //////////////////////////////////////////////////////////////////////////////
 
+/**
+ * A key/value pair for use with map.
+ */
 template <typename Key, typename Value>
 struct pair { using key = Key; using value = Value; };
 
+/**
+ * Variadic container of key/value pairs. At most one key may be in the map.
+ */
 template <typename...>
 struct map;
 
+/**
+ * Count the number of key/value pairs in Map, where key matches Key. Note
+ * that for a regular map, this value will always be either 0 or 1.
+ */
+/* Recursive case */
 template <typename Map, typename Key, unsigned int C = 0>
 struct count : count<typename Map::tail, Key, C + std::is_same<Key, typename Map::head::key>::value> { };
 
+/* Base case */
 template <typename Key, unsigned int C>
 struct count<map<>, Key, C> {
     static constexpr unsigned int value = C;
@@ -43,15 +62,27 @@ struct map<> {
 template <typename Map, typename Key, typename Enable = void>
 struct at_impl;
 
+/* Recursive case */
 template <typename Map, typename Key>
 struct at_impl<Map, Key, typename std::enable_if<!std::is_same<typename Map::head::key, Key>::value>::type>
         : at_impl<typename Map::tail, Key> { };
 
+/* Base case */
 template <typename Map, typename Key>
 struct at_impl<Map, Key, typename std::enable_if<std::is_same<typename Map::head::key, Key>::value>::type> {
     using type = typename Map::head::value;
 };
 
+/**
+ * Look up the value associated with a given Key in Map. The result will be a
+ * member typedef called /type/.
+ *
+ * at is a wrapper that merely checks for existence of a key, then relies on
+ * at_impl to do the lookup. If both the existence check and the lookup code
+ * were in the same recursive template, the static_assert which prints the
+ * error at compile-time would also be recursively instantiated, leading to n
+ * lines of errors.
+ */
 template <typename Map, typename Key, typename Enable = void>
 struct at;
 
@@ -67,41 +98,35 @@ struct at<Map, Key, typename std::enable_if<!count<Map, Key>::value>::type> {
 
 //////////////////////////////////////////////////////////////////////////////
 
+template <typename T>
+static std::string type_name () {
+    int status;
+    std::unique_ptr<char> realname {
+        abi::__cxa_demangle(typeid(T).name(), 0, 0, &status)
+    };
+    return { realname.get() };
+}
+
 int main () {
-#if 0
-    using v = list<int, char, float>;
-    using h0 = v::head;
-    using t0 = v::tail;
-    using h1 = t0::head;
-    using t1 = t0::tail;
-    using h2 = t1::head;
-    using t2 = t1::tail;
+    using m = map< pair<int, char>
+                 , pair<double, float>
+                 , pair<unsigned, bool> >;
 
-    printf("%s\n", typeid(v).name());
-    printf("%s\n", typeid(h0).name());
-    printf("%s\n", typeid(t0).name());
-    printf("%s\n", typeid(h1).name());
-    printf("%s\n", typeid(t1).name());
-    printf("%s\n", typeid(h2).name());
-    printf("%s\n", typeid(t2).name());
-#endif
+    using v0 = typename at<m, int>::type;
+    using v1 = typename at<m, double>::type;
+    using v2 = typename at<m, unsigned>::type;
 
-    using m = map<pair<int, char>, pair<double, float>, pair<unsigned, bool>>;
-    using k0 = m::head::key;
-    using v0 = typename at<m, k0>::type;
-    using k1 = m::tail::head::key;
-    using v1 = typename at<m, k1>::type;
-    using k2 = m::tail::tail::head::key;
-    using v2 = typename at<m, k2>::type;
+    static_assert(std::is_same<char, v0>::value, "map[int] != char");
+    static_assert(std::is_same<float, v1>::value, "map[double] != float");
+    static_assert(std::is_same<bool, v2>::value, "map[unsigned] != bool");
+
+    printf("%s\n", type_name<m>().c_str());
+    printf("int\t\t-> %s\n", type_name<v0>().c_str());
+    printf("double\t\t-> %s\n", type_name<v1>().c_str());
+    printf("unsigned\t-> %s\n", type_name<v2>().c_str());
+
+    // compile error, should trip "key not found" static_assert
     //using vn = typename at<m, long double>::type;
-
-    printf("%s\n", typeid(m).name());
-    printf("%s\n", typeid(k0).name());
-    printf("%s\n", typeid(v0).name());
-    printf("%s\n", typeid(k1).name());
-    printf("%s\n", typeid(v1).name());
-    printf("%s\n", typeid(k2).name());
-    printf("%s\n", typeid(v2).name());
 
     printf("count(int): %d\n", count<m, int>::value);
     printf("count(double): %d\n", count<m, double>::value);
