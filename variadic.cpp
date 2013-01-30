@@ -13,6 +13,9 @@ template <>
 struct variadic<> {
     static constexpr unsigned int size = 0;
     using empty = void;
+
+    template <typename NewHead>
+    using push = variadic<NewHead>;
 };
 
 template <typename Head, typename... Tail>
@@ -22,6 +25,9 @@ struct variadic<Head, Tail...> {
 
     using head = Head;
     using tail = variadic<Tail...>;
+
+    template <typename NewHead>
+    using push = variadic<NewHead, Head, Tail...>;
 };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -98,33 +104,31 @@ using size = std::integral_constant< unsigned int
 
 //////////////////////////////////////////////////////////////////////////////
 
-template <typename Variadic, typename Pair, typename Enable = void>
-struct assert_key_does_not_exist;
-
-template <typename Variadic, typename Pair>
-struct assert_key_does_not_exist<Variadic, Pair, typename Variadic::empty> : std::true_type {
-};
-
-template <typename Variadic, typename Pair>
-struct assert_key_does_not_exist<Variadic, Pair, typename Variadic::nonempty> {
-    using type = typename Variadic::tail;
+template <typename Tuple, typename Pair>
+struct is_key_unique {
+    using tail = typename Tuple::key::tail;
+    using result = typename Tuple::value;
 
     using key = typename Pair::key;
 
     template <typename I, typename P>
     using func = typename key_equals<key>::template func<I, P>;
 
-    static constexpr unsigned int value = count_if<Variadic, func>::value;
-    static_assert(!value, "duplicate key in map");
+    static constexpr bool value = !count_if<tail, func>::value;
+
+    using new_result = typename result::template push<typename std::conditional<value, std::true_type, std::false_type>::type>;
+
+    using type = pair<tail, new_result>;
 };
 
-template <typename Variadic, typename Pair>
-using assert_key_does_not_exist_aux = assert_key_does_not_exist<Variadic, Pair>;
-
 template <typename Variadic>
-using assert_is_map = foldl< assert_key_does_not_exist_aux
-                           , typename Variadic::tail
-                           , Variadic >;
+struct has_unique_keys {
+    using unique = foldl< is_key_unique
+                        , pair<Variadic, variadic<>>
+                        , Variadic >;
+
+    static constexpr bool value = !count_if<typename unique::type::value, equals<std::false_type>::func>::value;
+};
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -164,26 +168,56 @@ void write (T t) {
 int main () {
     using v = variadic<int, char, double>;
 
-    using h0 = typename v::head;
-    using t0 = typename v::tail;
-    using h1 = typename t0::head;
-    using t1 = typename t0::tail;
-    using h2 = typename t1::head;
-    using t2 = typename t1::tail;
+    {
+        using h0 = typename v::head;
+        using t0 = typename v::tail;
+        using h1 = typename t0::head;
+        using t1 = typename t0::tail;
+        using h2 = typename t1::head;
+        using t2 = typename t1::tail;
 
-    printf("v = %s\n", type_name<v>().c_str());
-    printf("%s : %s\n", type_name<h0>().c_str(), type_name<t0>().c_str());
-    printf("%s : %s\n", type_name<h1>().c_str(), type_name<t1>().c_str());
-    printf("%s : %s\n", type_name<h2>().c_str(), type_name<t2>().c_str());
+        printf("v = %s\n", type_name<v>().c_str());
+        printf("%s : %s\n", type_name<h0>().c_str(), type_name<t0>().c_str());
+        printf("%s : %s\n", type_name<h1>().c_str(), type_name<t1>().c_str());
+        printf("%s : %s\n", type_name<h2>().c_str(), type_name<t2>().c_str());
 
-    printf("%d\n", size<v>::value);
+        printf("%d\n", size<v>::value);
 
-    printf("%d ints\n", count_if<v, equals<int>::func>::value);
-    printf("%d char\n", count_if<v, equals<char>::func>::value);
-    printf("%d doubles\n", count_if<v, equals<double>::func>::value);
-    printf("%d long doubles\n", count_if<v, equals<long double>::func>::value);
+        printf("%d ints\n", count_if<v, equals<int>::func>::value);
+        printf("%d char\n", count_if<v, equals<char>::func>::value);
+        printf("%d doubles\n", count_if<v, equals<double>::func>::value);
+        printf("%d bools\n", count_if<v, equals<bool>::func>::value);
+    }
+
+    using vv = v::push<bool>;
+
+    {
+        using h0 = typename vv::head;
+        using t0 = typename vv::tail;
+        using h1 = typename t0::head;
+        using t1 = typename t0::tail;
+        using h2 = typename t1::head;
+        using t2 = typename t1::tail;
+        using h3 = typename t2::head;
+        using t3 = typename t2::tail;
+
+        printf("vv = %s\n", type_name<vv>().c_str());
+        printf("%s : %s\n", type_name<h0>().c_str(), type_name<t0>().c_str());
+        printf("%s : %s\n", type_name<h1>().c_str(), type_name<t1>().c_str());
+        printf("%s : %s\n", type_name<h2>().c_str(), type_name<t2>().c_str());
+        printf("%s : %s\n", type_name<h3>().c_str(), type_name<t3>().c_str());
+
+        printf("%d\n", size<vv>::value);
+
+        printf("%d ints\n", count_if<vv, equals<int>::func>::value);
+        printf("%d char\n", count_if<vv, equals<char>::func>::value);
+        printf("%d doubles\n", count_if<vv, equals<double>::func>::value);
+        printf("%d bools\n", count_if<vv, equals<bool>::func>::value);
+    }
 
     using m = variadic<pair<bool, char>, pair<wchar_t, char16_t>, pair<char32_t, signed char>>;
+
+    static_assert(has_unique_keys<m>::value, "m has duplicate keys");
 
     printf("m = %s\n", type_name<m>().c_str());
     printf("%d bool keys\n", count_if<m, key_equals<bool>::func>::value);
