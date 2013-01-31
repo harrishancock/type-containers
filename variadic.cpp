@@ -11,23 +11,23 @@ struct variadic;
 
 template <>
 struct variadic<> {
-    static constexpr unsigned int size = 0;
-    using empty = void;
-
     template <typename NewHead>
     using push = variadic<NewHead>;
+
+    static constexpr unsigned int size = 0;
+    using empty = void;
 };
 
 template <typename Head, typename... Tail>
 struct variadic<Head, Tail...> {
-    static constexpr unsigned int size = sizeof...(Tail) + 1;
-    using nonempty = void;
-
     using head = Head;
     using tail = variadic<Tail...>;
 
     template <typename NewHead>
     using push = variadic<NewHead, Head, Tail...>;
+
+    static constexpr unsigned int size = sizeof...(Tail) + 1;
+    using nonempty = void;
 };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -38,29 +38,36 @@ struct pair { using key = Key; using value = Value; };
 //////////////////////////////////////////////////////////////////////////////
 
 template <template <typename, typename> class Func, typename Z, typename Variadic, typename Enable = void>
-struct foldl;
+struct foldl_aux;
 
 template <template <typename, typename> class Func, typename Z, typename Variadic>
-struct foldl<Func, Z, Variadic, typename Variadic::empty> {
+struct foldl_aux<Func, Z, Variadic, typename Variadic::empty> {
     using type = Z;
 };
 
 template <template <typename, typename> class Func, typename Z, typename Variadic>
-struct foldl<Func, Z, Variadic, typename Variadic::nonempty>
-        : foldl< Func
-               , typename Func<Z, typename Variadic::head>::type
-               , typename Variadic::tail > { };
+struct foldl_aux<Func, Z, Variadic, typename Variadic::nonempty>
+        : foldl_aux< Func
+                   , typename Func<Z, typename Variadic::head>::type
+                   , typename Variadic::tail > { };
+
+/* By making foldl a template alias, foldl<Func, Z, Variadic> /is/ the type of
+ * the result. This makes metafunctions that rely on foldl easier to use:
+ * using type = typename at<Variadic, Key>::type;
+ * becomes
+ * using type = at<Variadic, Key>;
+ */
+template <template <typename, typename> class Func, typename Z, typename Variadic>
+using foldl = typename foldl_aux<Func, Z, Variadic>::type;
 
 //////////////////////////////////////////////////////////////////////////////
 
 template <typename Variadic, template <typename, typename> class Predicate>
-struct count_if {
-    using type = typename foldl< Predicate
-                               , std::integral_constant<unsigned int, 0>
-                               , Variadic >::type;
-    static constexpr unsigned int value = type::value;
-};
+using count_if = foldl< Predicate
+                      , std::integral_constant<unsigned int, 0>
+                      , Variadic >;
 
+/* equals and key_equals are predicates for use with count_if */
 template <typename T0>
 struct equals {
     template <typename I, typename T1>
@@ -77,7 +84,11 @@ struct key_equals {
 
 //////////////////////////////////////////////////////////////////////////////
 
-/* Exists solely to force an assertion with key_not_found<>. */
+/* Exists solely to force an assertion with key_not_found<>. If this were a
+ * non-template struct, and just had a static_assert(false, ...), it would
+ * always fail at compile-time, which is not what we want. The only way I can
+ * think of to force a conditional compile-time assertion failure involves
+ * template parameters. */
 template <typename... Types>
 struct key_not_found {
     static_assert(sizeof...(Types), "key not found");
@@ -127,7 +138,7 @@ struct has_unique_keys {
                         , pair<Variadic, variadic<>>
                         , Variadic >;
 
-    static constexpr bool value = !count_if<typename unique::type::value, equals<std::false_type>::func>::value;
+    static constexpr bool value = !count_if<typename unique::value, equals<std::false_type>::func>::value;
 };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -143,7 +154,7 @@ static std::string type_name () {
 
 template <typename Casts, typename T>
 void write (T t) {
-    using to_type = typename at<Casts, T, T>::type;
+    using to_type = at<Casts, T, T>;
 
     printf("static_cast<%s>(%s)\n", type_name<to_type>().c_str(), type_name<T>().c_str());
 
@@ -225,9 +236,9 @@ int main () {
     printf("%d char32_t keys\n", count_if<m, key_equals<char32_t>::func>::value);
     printf("%d unsigned char keys\n", count_if<m, key_equals<unsigned char>::func>::value);
 
-    printf("m[bool] ==\t%s\n", type_name<typename at<m, bool>::type>().c_str());
-    printf("m[wchar_t] ==\t%s\n", type_name<typename at<m, wchar_t>::type>().c_str());
-    printf("m[char32_t] ==\t%s\n", type_name<typename at<m, char32_t>::type>().c_str());
+    printf("m[bool] ==\t%s\n", type_name<at<m, bool>>().c_str());
+    printf("m[wchar_t] ==\t%s\n", type_name<at<m, wchar_t>>().c_str());
+    printf("m[char32_t] ==\t%s\n", type_name<at<m, char32_t>>().c_str());
 
     using casting_policy = variadic< pair<bool, char>
                                    , pair<int, int16_t>
