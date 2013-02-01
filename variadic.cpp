@@ -33,7 +33,18 @@ struct variadic<Head, Tail...> {
 //////////////////////////////////////////////////////////////////////////////
 
 template <typename Key, typename Value>
-struct pair { using key = Key; using value = Value; };
+struct pair {
+    using key = Key;
+    using value = Value;
+};
+
+//////////////////////////////////////////////////////////////////////////////
+
+template <typename T>
+struct is_pair : std::false_type { };
+
+template <typename Key, typename Value>
+struct is_pair<pair<Key, Value>> : std::true_type { };
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -59,6 +70,25 @@ struct foldl_aux<Func, Z, Variadic, typename Variadic::nonempty>
  */
 template <template <typename, typename> class Func, typename Z, typename Variadic>
 using foldl = typename foldl_aux<Func, Z, Variadic>::type;
+
+//////////////////////////////////////////////////////////////////////////////
+
+template <template <typename> class Func, typename Result, typename Variadic, typename Enable = void>
+struct map_aux;
+
+template <template <typename> class Func, typename Result, typename Variadic>
+struct map_aux<Func, Result, Variadic, typename Variadic::empty> {
+    using type = Result;
+};
+
+template <template <typename> class Func, typename Result, typename Variadic>
+struct map_aux<Func, Result, Variadic, typename Variadic::nonempty>
+        : map_aux< Func
+                 , typename Result::template push<typename Func<typename Variadic::head>::type>
+                 , typename Variadic::tail > { };
+
+template <template <typename> class Func, typename Variadic>
+using map = typename map_aux<Func, variadic<>, Variadic>::type;
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -109,25 +139,22 @@ using at = foldl< at_key<Key>::template func
 
 //////////////////////////////////////////////////////////////////////////////
 
-template <typename Variadic>
-using size = std::integral_constant< unsigned int
-                                   , Variadic::size >;
-
-//////////////////////////////////////////////////////////////////////////////
-
 template <typename Tuple, typename Pair>
 struct is_key_unique {
     using tail = typename Tuple::key::tail;
     using result = typename Tuple::value;
 
-    using key = typename Pair::key;
-
     template <typename I, typename P>
-    using func = typename key_equals<key>::template func<I, P>;
+    using func = typename key_equals<typename Pair::key>::template func<I, P>;
 
     static constexpr bool value = !count_if<tail, func>::value;
+    using is_unique = typename std::conditional< value
+                                               , std::true_type
+                                               , std::false_type>::type;
 
-    using new_result = typename result::template push<typename std::conditional<value, std::true_type, std::false_type>::type>;
+    template <typename T>
+    using push = typename result::template push<T>;
+    using new_result = push<is_unique>;
 
     using type = pair<tail, new_result>;
 };
@@ -138,7 +165,8 @@ struct has_unique_keys {
                         , pair<Variadic, variadic<>>
                         , Variadic >;
 
-    static constexpr bool value = !count_if<typename unique::value, equals<std::false_type>::func>::value;
+    static constexpr bool value = !count_if< typename unique::value
+                                           , equals<std::false_type>::func>::value;
 };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -192,7 +220,7 @@ int main () {
         printf("%s : %s\n", type_name<h1>().c_str(), type_name<t1>().c_str());
         printf("%s : %s\n", type_name<h2>().c_str(), type_name<t2>().c_str());
 
-        printf("%d\n", size<v>::value);
+        printf("%d\n", v::size);
 
         printf("%d ints\n", count_if<v, equals<int>::func>::value);
         printf("%d char\n", count_if<v, equals<char>::func>::value);
@@ -218,7 +246,7 @@ int main () {
         printf("%s : %s\n", type_name<h2>().c_str(), type_name<t2>().c_str());
         printf("%s : %s\n", type_name<h3>().c_str(), type_name<t3>().c_str());
 
-        printf("%d\n", size<vv>::value);
+        printf("%d\n", vv::size);
 
         printf("%d ints\n", count_if<vv, equals<int>::func>::value);
         printf("%d char\n", count_if<vv, equals<char>::func>::value);
