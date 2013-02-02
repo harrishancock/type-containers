@@ -15,7 +15,6 @@ struct variadic<> {
     using push = variadic<NewHead>;
 
     static constexpr unsigned int size = 0;
-    using empty = void;
 };
 
 template <typename Head, typename... Tail>
@@ -27,7 +26,6 @@ struct variadic<Head, Tail...> {
     using push = variadic<NewHead, Head, Tail...>;
 
     static constexpr unsigned int size = sizeof...(Tail) + 1;
-    using nonempty = void;
 };
 
 //////////////////////////////////////////////////////////////////////////////
