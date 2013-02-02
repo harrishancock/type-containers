@@ -7,31 +7,36 @@
 #include <cxxabi.h>
 
 template <typename... Types>
-struct variadic;
+struct list;
 
 template <>
-struct variadic<> {
+struct list<> {
     template <typename NewHead>
-    using push = variadic<NewHead>;
+    using cons = list<NewHead>;
 
-    static constexpr unsigned int size = 0;
+    using length = std::integral_constant<unsigned int, 0>;
 };
 
 template <typename Head, typename... Tail>
-struct variadic<Head, Tail...> {
+struct list<Head, Tail...> {
     using head = Head;
-    using tail = variadic<Tail...>;
+    using tail = list<Tail...>;
 
     template <typename NewHead>
-    using push = variadic<NewHead, Head, Tail...>;
+    using cons = list<NewHead, Head, Tail...>;
 
-    static constexpr unsigned int size = sizeof...(Tail) + 1;
+    using length = std::integral_constant<unsigned int, sizeof...(Tail) + 1>;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
+template <typename Element, typename Variadic>
+using cons = typename Variadic::template cons<Element>;
+
+//////////////////////////////////////////////////////////////////////////////
+
 template <typename Variadic>
-using length = std::integral_constant<unsigned int, Variadic::size>;
+using length = typename Variadic::length;
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -42,7 +47,7 @@ struct foldl_aux : foldl_aux< Func
 
 
 template <template <typename, typename> class Func, typename Z>
-struct foldl_aux<Func, Z, variadic<>> {
+struct foldl_aux<Func, Z, list<>> {
     using type = Z;
 };
 
@@ -56,12 +61,12 @@ struct map_aux {
     using head = typename Variadic::head;
     using tail = typename Variadic::tail;
     using result = typename Func<head>::type;
-    using type = typename map_aux<Func, tail>::type::template push<result>;
+    using type = cons<result, typename map_aux<Func, tail>::type>;
 };
 
 template <template <typename> class Func>
-struct map_aux<Func, variadic<>> {
-    using type = variadic<>;
+struct map_aux<Func, list<>> {
+    using type = list<>;
 };
 
 template <template <typename> class Func, typename Variadic>
@@ -74,12 +79,14 @@ struct filter_aux {
     using head = typename Variadic::head;
     using tail = typename Variadic::tail;
     using next = typename filter_aux<Predicate, tail>::type;
-    using type = typename std::conditional<Predicate<head>::value, typename next::template push<head>, next>::type;
+    using type = typename std::conditional< Predicate<head>::value
+                                          , cons<head, next>
+                                          , next >::type;
 };
 
 template <template <typename> class Predicate>
-struct filter_aux<Predicate, variadic<>> {
-    using type = variadic<>;
+struct filter_aux<Predicate, list<>> {
+    using type = list<>;
 };
 
 template <template <typename> class Predicate, typename Variadic>
@@ -90,12 +97,12 @@ using filter = typename filter_aux<Predicate, Variadic>::type;
 template <typename Variadic>
 struct tails_aux {
     using tail = typename Variadic::tail;
-    using type = typename tails_aux<tail>::type::template push<Variadic>;
+    using type = cons<Variadic, typename tails_aux<tail>::type>;
 };
 
 template <>
-struct tails_aux<variadic<>> {
-    using type = variadic<variadic<>>;
+struct tails_aux<list<>> {
+    using type = list<list<>>;
 };
 
 template <typename Variadic>
@@ -192,11 +199,11 @@ struct has_unique_key_head {
     static constexpr bool value = !count_if<tail, func>::value;
     using type = typename std::conditional< value
                                           , std::true_type
-                                          , std::false_type>::type;
+                                          , std::false_type >::type;
 };
 
 template <>
-struct has_unique_key_head<variadic<>> {
+struct has_unique_key_head<list<>> {
     using type = std::true_type;
 };
 
@@ -239,7 +246,7 @@ void write (T t) {
 }
 
 int main () {
-    using v = variadic<int, char, double>;
+    using v = list<int, char, double>;
 
     {
         using h0 = typename v::head;
@@ -254,7 +261,7 @@ int main () {
         printf("%s : %s\n", type_name<h1>().c_str(), type_name<t1>().c_str());
         printf("%s : %s\n", type_name<h2>().c_str(), type_name<t2>().c_str());
 
-        printf("%d\n", v::size);
+        printf("%d\n", length<v>::value);
 
         printf("%d ints\n", count_if<v, equals<int>::func>::value);
         printf("%d char\n", count_if<v, equals<char>::func>::value);
@@ -262,7 +269,7 @@ int main () {
         printf("%d bools\n", count_if<v, equals<bool>::func>::value);
     }
 
-    using vv = v::push<void>;
+    using vv = cons<void, v>;
 
     {
         using h0 = typename vv::head;
@@ -280,7 +287,7 @@ int main () {
         printf("%s : %s\n", type_name<h2>().c_str(), type_name<t2>().c_str());
         printf("%s : %s\n", type_name<h3>().c_str(), type_name<t3>().c_str());
 
-        printf("%d\n", vv::size);
+        printf("%d\n", length<vv>::value);
 
         printf("%d ints\n", count_if<vv, equals<int>::func>::value);
         printf("%d char\n", count_if<vv, equals<char>::func>::value);
@@ -304,7 +311,7 @@ int main () {
         printf("tail4 = %s\n", type_name<tail4>().c_str());
     }
 
-    using m = variadic<pair<bool, char>, pair<wchar_t, char16_t>, pair<char32_t, signed char>>;
+    using m = list<pair<bool, char>, pair<wchar_t, char16_t>, pair<char32_t, signed char>>;
 
     //static_assert(has_unique_keys<m>::value, "m has duplicate keys");
 
@@ -318,7 +325,7 @@ int main () {
     printf("m[wchar_t] ==\t%s\n", type_name<at<m, wchar_t>>().c_str());
     printf("m[char32_t] ==\t%s\n", type_name<at<m, char32_t>>().c_str());
 
-    using casting_policy = variadic< pair<bool, char>
+    using casting_policy = list< pair<bool, char>
                                    , pair<int, int16_t>
                                    , pair<unsigned int, uint16_t>
                                    , pair<double, float>>;
