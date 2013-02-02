@@ -32,6 +32,99 @@ struct variadic<Head, Tail...> {
 
 //////////////////////////////////////////////////////////////////////////////
 
+template <typename Variadic>
+using length = std::integral_constant<unsigned int, Variadic::size>;
+
+//////////////////////////////////////////////////////////////////////////////
+
+template <template <typename, typename> class Func, typename Z, typename Variadic>
+struct foldl_aux : foldl_aux< Func
+                            , typename Func<Z, typename Variadic::head>::type
+                            , typename Variadic::tail > { };
+
+
+template <template <typename, typename> class Func, typename Z>
+struct foldl_aux<Func, Z, variadic<>> {
+    using type = Z;
+};
+
+template <template <typename, typename> class Func, typename Z, typename Variadic>
+using foldl = typename foldl_aux<Func, Z, Variadic>::type;
+
+//////////////////////////////////////////////////////////////////////////////
+
+template <template <typename> class Func, typename Variadic>
+struct map_aux {
+    using head = typename Variadic::head;
+    using tail = typename Variadic::tail;
+    using result = typename Func<head>::type;
+    using type = typename map_aux<Func, tail>::type::template push<result>;
+};
+
+template <template <typename> class Func>
+struct map_aux<Func, variadic<>> {
+    using type = variadic<>;
+};
+
+template <template <typename> class Func, typename Variadic>
+using map = typename map_aux<Func, Variadic>::type;
+
+//////////////////////////////////////////////////////////////////////////////
+
+template <template <typename> class Predicate, typename Variadic>
+struct filter_aux {
+    using head = typename Variadic::head;
+    using tail = typename Variadic::tail;
+    using next = typename filter_aux<Predicate, tail>::type;
+    using type = typename std::conditional<Predicate<head>::value, typename next::template push<head>, next>::type;
+};
+
+template <template <typename> class Predicate>
+struct filter_aux<Predicate, variadic<>> {
+    using type = variadic<>;
+};
+
+template <template <typename> class Predicate, typename Variadic>
+using filter = typename filter_aux<Predicate, Variadic>::type;
+
+//////////////////////////////////////////////////////////////////////////////
+
+template <typename Variadic>
+struct tails_aux {
+    using tail = typename Variadic::tail;
+    using type = typename tails_aux<tail>::type::template push<Variadic>;
+};
+
+template <>
+struct tails_aux<variadic<>> {
+    using type = variadic<variadic<>>;
+};
+
+template <typename Variadic>
+using tails = typename tails_aux<Variadic>::type;
+
+//////////////////////////////////////////////////////////////////////////////
+
+template <typename Z, typename Bool>
+using or_aux = std::conditional<Z::value && Bool::value, std::true_type, std::false_type>;
+
+template <typename Variadic>
+using or_ = foldl<or_aux, std::false_type, Variadic>;
+
+template <template <typename> class Predicate, typename Variadic>
+using any = or_<map<Predicate, Variadic>>;
+
+template <typename Z, typename Bool>
+using and_aux = std::conditional<Z::value && Bool::value, std::true_type, std::false_type>;
+
+template <typename Variadic>
+using and_ = foldl<and_aux, std::true_type, Variadic>;
+
+template <template <typename> class Predicate, typename Variadic>
+using all = and_<map<Predicate, Variadic>>;
+
+//////////////////////////////////////////////////////////////////////////////
+
 template <typename Key, typename Value>
 struct pair {
     using key = Key;
@@ -45,72 +138,6 @@ struct is_pair : std::false_type { };
 
 template <typename Key, typename Value>
 struct is_pair<pair<Key, Value>> : std::true_type { };
-
-//////////////////////////////////////////////////////////////////////////////
-
-template <template <typename, typename> class Func, typename Z, typename Variadic, typename Enable = void>
-struct foldl_aux;
-
-template <template <typename, typename> class Func, typename Z, typename Variadic>
-struct foldl_aux<Func, Z, Variadic, typename Variadic::empty> {
-    using type = Z;
-};
-
-template <template <typename, typename> class Func, typename Z, typename Variadic>
-struct foldl_aux<Func, Z, Variadic, typename Variadic::nonempty>
-        : foldl_aux< Func
-                   , typename Func<Z, typename Variadic::head>::type
-                   , typename Variadic::tail > { };
-
-/* By making foldl a template alias, foldl<Func, Z, Variadic> /is/ the type of
- * the result. This makes metafunctions that rely on foldl easier to use:
- * using type = typename at<Variadic, Key>::type;
- * becomes
- * using type = at<Variadic, Key>;
- */
-template <template <typename, typename> class Func, typename Z, typename Variadic>
-using foldl = typename foldl_aux<Func, Z, Variadic>::type;
-
-//////////////////////////////////////////////////////////////////////////////
-
-template <template <typename> class Func, typename Result, typename Variadic, typename Enable = void>
-struct map_aux;
-
-template <template <typename> class Func, typename Result, typename Variadic>
-struct map_aux<Func, Result, Variadic, typename Variadic::empty> {
-    using type = Result;
-};
-
-template <template <typename> class Func, typename Result, typename Variadic>
-struct map_aux<Func, Result, Variadic, typename Variadic::nonempty>
-        : map_aux< Func
-                 , typename Result::template push<typename Func<typename Variadic::head>::type>
-                 , typename Variadic::tail > { };
-
-template <template <typename> class Func, typename Variadic>
-using map = typename map_aux<Func, variadic<>, Variadic>::type;
-
-//////////////////////////////////////////////////////////////////////////////
-
-template <typename Variadic, template <typename, typename> class Predicate>
-using count_if = foldl< Predicate
-                      , std::integral_constant<unsigned int, 0>
-                      , Variadic >;
-
-/* equals and key_equals are predicates for use with count_if */
-template <typename T0>
-struct equals {
-    template <typename I, typename T1>
-    using func = std::integral_constant< typename I::value_type
-                                       , I::value + std::is_same<T0, T1>::value >;
-};
-
-template <typename Key>
-struct key_equals {
-    template <typename I, typename Pair>
-    using func = std::integral_constant< typename I::value_type
-                                       , I::value + std::is_same<Key, typename Pair::key>::value >;
-};
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -139,35 +166,44 @@ using at = foldl< at_key<Key>::template func
 
 //////////////////////////////////////////////////////////////////////////////
 
-template <typename Tuple, typename Pair>
-struct is_key_unique {
-    using tail = typename Tuple::key::tail;
-    using result = typename Tuple::value;
+template <typename Variadic, template <typename> class Predicate>
+using count_if = length<filter<Predicate, Variadic>>;
 
-    template <typename I, typename P>
-    using func = typename key_equals<typename Pair::key>::template func<I, P>;
+template <typename T0>
+struct equals {
+    template <typename T1>
+    using func = std::is_same<T0, T1>;
+};
+
+template <typename Key>
+struct key_equals {
+    template <typename Pair>
+    using func = std::is_same<Key, typename Pair::key>;
+};
+
+//////////////////////////////////////////////////////////////////////////////
+
+template <typename Variadic>
+struct has_unique_key_head {
+    using tail = typename Variadic::tail;
+    using head = typename Variadic::head;
+
+    template <typename P>
+    using func = typename key_equals<typename head::key>::template func<P>;
 
     static constexpr bool value = !count_if<tail, func>::value;
-    using is_unique = typename std::conditional< value
-                                               , std::true_type
-                                               , std::false_type>::type;
+    using type = typename std::conditional< value
+                                          , std::true_type
+                                          , std::false_type>::type;
+};
 
-    template <typename T>
-    using push = typename result::template push<T>;
-    using new_result = push<is_unique>;
-
-    using type = pair<tail, new_result>;
+template <>
+struct has_unique_key_head<variadic<>> {
+    using type = std::true_type;
 };
 
 template <typename Variadic>
-struct has_unique_keys {
-    using unique = foldl< is_key_unique
-                        , pair<Variadic, variadic<>>
-                        , Variadic >;
-
-    static constexpr bool value = !count_if< typename unique::value
-                                           , equals<std::false_type>::func>::value;
-};
+using has_unique_keys = all<has_unique_key_head, tails<Variadic>>;
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -228,7 +264,7 @@ int main () {
         printf("%d bools\n", count_if<v, equals<bool>::func>::value);
     }
 
-    using vv = v::push<bool>;
+    using vv = v::push<void>;
 
     {
         using h0 = typename vv::head;
@@ -252,11 +288,27 @@ int main () {
         printf("%d char\n", count_if<vv, equals<char>::func>::value);
         printf("%d doubles\n", count_if<vv, equals<double>::func>::value);
         printf("%d bools\n", count_if<vv, equals<bool>::func>::value);
+
+        printf("map<is_void, vv> = %s\n", type_name<map<std::is_void, vv>>().c_str());
+
+        using ts = tails<vv>;
+
+        using tail0 = typename ts::head;
+        using tail1 = typename ts::tail::head;
+        using tail2 = typename ts::tail::tail::head;
+        using tail3 = typename ts::tail::tail::tail::head;
+        using tail4 = typename ts::tail::tail::tail::tail::head;
+
+        printf("tail0 = %s\n", type_name<tail0>().c_str());
+        printf("tail1 = %s\n", type_name<tail1>().c_str());
+        printf("tail2 = %s\n", type_name<tail2>().c_str());
+        printf("tail3 = %s\n", type_name<tail3>().c_str());
+        printf("tail4 = %s\n", type_name<tail4>().c_str());
     }
 
     using m = variadic<pair<bool, char>, pair<wchar_t, char16_t>, pair<char32_t, signed char>>;
 
-    static_assert(has_unique_keys<m>::value, "m has duplicate keys");
+    //static_assert(has_unique_keys<m>::value, "m has duplicate keys");
 
     printf("m = %s\n", type_name<m>().c_str());
     printf("%d bool keys\n", count_if<m, key_equals<bool>::func>::value);
