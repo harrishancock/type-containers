@@ -153,7 +153,7 @@ using append = foldr<cons, List1, List0>;
 //////////////////////////////////////////////////////////////////////////////
 
 template <typename Z, typename Bool>
-using or_aux = typename std::conditional< Z::value && Bool::value
+using or_aux = typename std::conditional< Z::value || Bool::value
                                         , std::true_type
                                         , std::false_type >::type;
 
