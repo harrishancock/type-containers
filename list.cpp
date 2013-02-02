@@ -80,6 +80,10 @@ using foldr = typename foldr_aux<Func, Z, List>::type;
 
 //////////////////////////////////////////////////////////////////////////////
 
+/* In Haskell:
+ * reverse = foldl (flip (:)) []
+ */
+
 template <typename List, typename Element>
 using reverse_cons = cons<Element, List>;
 
@@ -146,6 +150,10 @@ template <typename List>
 using tails = typename tails_aux<List>::type;
 
 //////////////////////////////////////////////////////////////////////////////
+
+/* In Haskell:
+ * append = flip $ foldr (:)
+ */
 
 template <typename List0, typename List1>
 using append = foldr<cons, List1, List0>;
@@ -214,7 +222,7 @@ struct at_key {
     template <typename Default, typename Pair>
     using func = typename std::conditional< std::is_same<Key, typename Pair::key>::value
                                           , typename Pair::value
-                                          , Default>::type;
+                                          , Default >::type;
 };
 
 template <typename List, typename Key, typename Default = key_not_found<>>
