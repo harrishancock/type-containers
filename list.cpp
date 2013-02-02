@@ -6,6 +6,8 @@
 #include <typeinfo>
 #include <cxxabi.h>
 
+//////////////////////////////////////////////////////////////////////////////
+
 template <typename... Types>
 struct list;
 
@@ -30,38 +32,76 @@ struct list<Head, Tail...> {
 
 //////////////////////////////////////////////////////////////////////////////
 
-template <typename Element, typename Variadic>
-using cons = typename Variadic::template cons<Element>;
+template <typename List>
+using null = typename std::is_same<list<>, List>::type;
+
+template <typename List>
+using head = typename List::head;
+
+template <typename List>
+using tail = typename List::tail;
+
+template <typename Element, typename List>
+using cons = typename List::template cons<Element>;
+
+template <typename List>
+using length = typename List::length;
 
 //////////////////////////////////////////////////////////////////////////////
 
-template <typename Variadic>
-using length = typename Variadic::length;
-
-//////////////////////////////////////////////////////////////////////////////
-
-template <template <typename, typename> class Func, typename Z, typename Variadic>
+template <template <typename, typename> class Func, typename Z, typename List>
 struct foldl_aux : foldl_aux< Func
-                            , typename Func<Z, typename Variadic::head>::type
-                            , typename Variadic::tail > { };
-
+                            , Func<Z, head<List>>
+                            , tail<List> > { };
 
 template <template <typename, typename> class Func, typename Z>
 struct foldl_aux<Func, Z, list<>> {
     using type = Z;
 };
 
-template <template <typename, typename> class Func, typename Z, typename Variadic>
-using foldl = typename foldl_aux<Func, Z, Variadic>::type;
+template <template <typename, typename> class Func, typename Z, typename List>
+using foldl = typename foldl_aux<Func, Z, List>::type;
 
 //////////////////////////////////////////////////////////////////////////////
 
-template <template <typename> class Func, typename Variadic>
+template <template <typename, typename> class Func, typename Z, typename List>
+struct foldr_aux {
+    using next = typename foldr_aux<Func, Z, tail<List>>::type;
+    using type = Func<head<List>, next>;
+};
+
+template <template <typename, typename> class Func, typename Z>
+struct foldr_aux<Func, Z, list<>> {
+    using type = Z;
+};
+
+template <template <typename, typename> class Func, typename Z, typename List>
+using foldr = typename foldr_aux<Func, Z, List>::type;
+
+//////////////////////////////////////////////////////////////////////////////
+
+template <typename List, typename Element>
+using reverse_cons = cons<Element, List>;
+
+template <typename List>
+using reverse = foldl< reverse_cons
+                     , list<>
+                     , List >;
+
+//////////////////////////////////////////////////////////////////////////////
+
+template <typename List>
+using last = head<reverse<List>>;
+
+template <typename List>
+using init = reverse<tail<reverse<List>>>;
+
+//////////////////////////////////////////////////////////////////////////////
+
+template <template <typename> class Func, typename List>
 struct map_aux {
-    using head = typename Variadic::head;
-    using tail = typename Variadic::tail;
-    using result = typename Func<head>::type;
-    using type = cons<result, typename map_aux<Func, tail>::type>;
+    using result = typename Func<head<List>>::type;
+    using type = cons<result, typename map_aux<Func, tail<List>>::type>;
 };
 
 template <template <typename> class Func>
@@ -69,18 +109,16 @@ struct map_aux<Func, list<>> {
     using type = list<>;
 };
 
-template <template <typename> class Func, typename Variadic>
-using map = typename map_aux<Func, Variadic>::type;
+template <template <typename> class Func, typename List>
+using map = typename map_aux<Func, List>::type;
 
 //////////////////////////////////////////////////////////////////////////////
 
-template <template <typename> class Predicate, typename Variadic>
+template <template <typename> class Predicate, typename List>
 struct filter_aux {
-    using head = typename Variadic::head;
-    using tail = typename Variadic::tail;
-    using next = typename filter_aux<Predicate, tail>::type;
-    using type = typename std::conditional< Predicate<head>::value
-                                          , cons<head, next>
+    using next = typename filter_aux<Predicate, tail<List>>::type;
+    using type = typename std::conditional< Predicate<head<List>>::value
+                                          , cons<head<List>, next>
                                           , next >::type;
 };
 
@@ -89,15 +127,14 @@ struct filter_aux<Predicate, list<>> {
     using type = list<>;
 };
 
-template <template <typename> class Predicate, typename Variadic>
-using filter = typename filter_aux<Predicate, Variadic>::type;
+template <template <typename> class Predicate, typename List>
+using filter = typename filter_aux<Predicate, List>::type;
 
 //////////////////////////////////////////////////////////////////////////////
 
-template <typename Variadic>
+template <typename List>
 struct tails_aux {
-    using tail = typename Variadic::tail;
-    using type = cons<Variadic, typename tails_aux<tail>::type>;
+    using type = cons<List, typename tails_aux<tail<List>>::type>;
 };
 
 template <>
@@ -105,28 +142,44 @@ struct tails_aux<list<>> {
     using type = list<list<>>;
 };
 
-template <typename Variadic>
-using tails = typename tails_aux<Variadic>::type;
+template <typename List>
+using tails = typename tails_aux<List>::type;
+
+//////////////////////////////////////////////////////////////////////////////
+
+template <typename List0, typename List1>
+using append = foldr<cons, List1, List0>;
 
 //////////////////////////////////////////////////////////////////////////////
 
 template <typename Z, typename Bool>
-using or_aux = std::conditional<Z::value && Bool::value, std::true_type, std::false_type>;
+using or_aux = typename std::conditional< Z::value && Bool::value
+                                        , std::true_type
+                                        , std::false_type >::type;
 
-template <typename Variadic>
-using or_ = foldl<or_aux, std::false_type, Variadic>;
-
-template <template <typename> class Predicate, typename Variadic>
-using any = or_<map<Predicate, Variadic>>;
+template <typename List>
+using or_ = foldl<or_aux, std::false_type, List>;
 
 template <typename Z, typename Bool>
-using and_aux = std::conditional<Z::value && Bool::value, std::true_type, std::false_type>;
+using and_aux = typename std::conditional< Z::value && Bool::value
+                                         , std::true_type
+                                         , std::false_type >::type;
 
-template <typename Variadic>
-using and_ = foldl<and_aux, std::true_type, Variadic>;
+template <typename List>
+using and_ = foldl<and_aux, std::true_type, List>;
 
-template <template <typename> class Predicate, typename Variadic>
-using all = and_<map<Predicate, Variadic>>;
+template <template <typename> class Predicate, typename List>
+using any = or_<map<Predicate, List>>;
+
+template <template <typename> class Predicate, typename List>
+using all = and_<map<Predicate, List>>;
+
+//////////////////////////////////////////////////////////////////////////////
+
+#if 0
+template <typename Predicate, typename List>
+using find = head<filter<Predicate, List>>;
+#endif
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -161,18 +214,18 @@ struct at_key {
     template <typename Default, typename Pair>
     using func = typename std::conditional< std::is_same<Key, typename Pair::key>::value
                                           , typename Pair::value
-                                          , Default>;
+                                          , Default>::type;
 };
 
-template <typename Variadic, typename Key, typename Default = key_not_found<>>
+template <typename List, typename Key, typename Default = key_not_found<>>
 using at = foldl< at_key<Key>::template func
                 , Default
-                , Variadic >;
+                , List >;
 
 //////////////////////////////////////////////////////////////////////////////
 
-template <typename Variadic, template <typename> class Predicate>
-using count_if = length<filter<Predicate, Variadic>>;
+template <typename List, template <typename> class Predicate>
+using count_if = length<filter<Predicate, List>>;
 
 template <typename T0>
 struct equals {
@@ -188,15 +241,14 @@ struct key_equals {
 
 //////////////////////////////////////////////////////////////////////////////
 
-template <typename Variadic>
+template <typename List>
 struct has_unique_key_head {
-    using tail = typename Variadic::tail;
-    using head = typename Variadic::head;
+    using key = typename head<List>::key;
 
     template <typename P>
-    using func = typename key_equals<typename head::key>::template func<P>;
+    using func = typename key_equals<key>::template func<P>;
 
-    static constexpr bool value = !count_if<tail, func>::value;
+    static constexpr bool value = !count_if<tail<List>, func>::value;
     using type = typename std::conditional< value
                                           , std::true_type
                                           , std::false_type >::type;
@@ -207,8 +259,29 @@ struct has_unique_key_head<list<>> {
     using type = std::true_type;
 };
 
-template <typename Variadic>
-using has_unique_keys = all<has_unique_key_head, tails<Variadic>>;
+template <typename List>
+using has_unique_keys = all<has_unique_key_head, tails<List>>;
+
+//////////////////////////////////////////////////////////////////////////////
+
+template <typename List>
+using has_pairs = all<is_pair, List>;
+
+//////////////////////////////////////////////////////////////////////////////
+
+template <typename List, typename Enable = void>
+struct is_assoclist_aux;
+
+template <typename List>
+struct is_assoclist_aux<List, typename std::enable_if<has_pairs<List>::value>::type>
+        : has_unique_keys<List> { };
+
+template <typename List>
+struct is_assoclist_aux<List, typename std::enable_if<!has_pairs<List>::value>::type>
+        : std::false_type { };
+
+template <typename List>
+using is_association_list = typename is_assoclist_aux<List>::type;
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -249,12 +322,12 @@ int main () {
     using v = list<int, char, double>;
 
     {
-        using h0 = typename v::head;
-        using t0 = typename v::tail;
-        using h1 = typename t0::head;
-        using t1 = typename t0::tail;
-        using h2 = typename t1::head;
-        using t2 = typename t1::tail;
+        using h0 = head<v>;
+        using t0 = tail<v>;
+        using h1 = head<t0>;
+        using t1 = tail<t0>;
+        using h2 = head<t1>;
+        using t2 = tail<t1>;
 
         printf("v = %s\n", type_name<v>().c_str());
         printf("%s : %s\n", type_name<h0>().c_str(), type_name<t0>().c_str());
@@ -272,14 +345,14 @@ int main () {
     using vv = cons<void, v>;
 
     {
-        using h0 = typename vv::head;
-        using t0 = typename vv::tail;
-        using h1 = typename t0::head;
-        using t1 = typename t0::tail;
-        using h2 = typename t1::head;
-        using t2 = typename t1::tail;
-        using h3 = typename t2::head;
-        using t3 = typename t2::tail;
+        using h0 = head<vv>;
+        using t0 = tail<vv>;
+        using h1 = head<t0>;
+        using t1 = tail<t0>;
+        using h2 = head<t1>;
+        using t2 = tail<t1>;
+        using h3 = head<t2>;
+        using t3 = tail<t2>;
 
         printf("vv = %s\n", type_name<vv>().c_str());
         printf("%s : %s\n", type_name<h0>().c_str(), type_name<t0>().c_str());
@@ -298,11 +371,11 @@ int main () {
 
         using ts = tails<vv>;
 
-        using tail0 = typename ts::head;
-        using tail1 = typename ts::tail::head;
-        using tail2 = typename ts::tail::tail::head;
-        using tail3 = typename ts::tail::tail::tail::head;
-        using tail4 = typename ts::tail::tail::tail::tail::head;
+        using tail0 = head<ts>;
+        using tail1 = head<tail<ts>>;
+        using tail2 = head<tail<tail<ts>>>;
+        using tail3 = head<tail<tail<tail<ts>>>>;
+        using tail4 = head<tail<tail<tail<tail<ts>>>>>;
 
         printf("tail0 = %s\n", type_name<tail0>().c_str());
         printf("tail1 = %s\n", type_name<tail1>().c_str());
@@ -311,9 +384,22 @@ int main () {
         printf("tail4 = %s\n", type_name<tail4>().c_str());
     }
 
+    using vvv = append<v, vv>;
+
+    printf("vvv = %s\n", type_name<vvv>().c_str());
+    printf("reverse<vvv> = %s\n", type_name<reverse<vvv>>().c_str());
+    printf("head<vvv> = %s\n", type_name<head<vvv>>().c_str());
+    printf("last<vvv> = %s\n", type_name<last<vvv>>().c_str());
+    printf("tail<vvv> = %s\n", type_name<tail<vvv>>().c_str());
+    printf("init<vvv> = %s\n", type_name<init<vvv>>().c_str());
+
     using m = list<pair<bool, char>, pair<wchar_t, char16_t>, pair<char32_t, signed char>>;
 
-    //static_assert(has_unique_keys<m>::value, "m has duplicate keys");
+    static_assert(is_association_list<m>::value, "m is not an association list");
+
+    using mm = cons<void, m>;
+
+    //static_assert(is_association_list<mm>::value, "mm is not an association list");
 
     printf("m = %s\n", type_name<m>().c_str());
     printf("%d bool keys\n", count_if<m, key_equals<bool>::func>::value);
