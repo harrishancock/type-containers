@@ -96,6 +96,20 @@ int main () {
         printf("tail2 = %s\n", type_name<tail2>().c_str());
         printf("tail3 = %s\n", type_name<tail3>().c_str());
         printf("tail4 = %s\n", type_name<tail4>().c_str());
+
+        using is = inits<vv>;
+
+        using init0 = head<is>;
+        using init1 = head<tail<is>>;
+        using init2 = head<tail<tail<is>>>;
+        using init3 = head<tail<tail<tail<is>>>>;
+        using init4 = head<tail<tail<tail<tail<is>>>>>;
+
+        printf("init0 = %s\n", type_name<init0>().c_str());
+        printf("init1 = %s\n", type_name<init1>().c_str());
+        printf("init2 = %s\n", type_name<init2>().c_str());
+        printf("init3 = %s\n", type_name<init3>().c_str());
+        printf("init4 = %s\n", type_name<init4>().c_str());
     }
 
     using vvv = append<v, vv>;
@@ -138,9 +152,57 @@ int main () {
     write<casting_policy>(3.14159678243234);
 
     printf("length<casting_policy> == %d\n", length<casting_policy>::value);
-    printf("degree<casting_policy> == %d\n", degree<casting_policy>::value);
+    printf("degree<casting_policy> == %d\n", polynomial::degree<casting_policy>::value);
 
     using zero_length = list<>;
     printf("length<zero_length> == %d\n", length<zero_length>::value);
-    printf("degree<zero_length> == %d\n", degree<zero_length>::value);
+    printf("degree<zero_length> == %d\n", polynomial::degree<zero_length>::value);
+
+    using p0 = list<std::ratio<1>, std::ratio<2>, std::ratio<3>>;
+    using p1 = reverse<p0>;
+    printf("p0 + p1 = %s\n", type_name<polynomial::add<p0, p1>>().c_str());
+
+    using p2 = list<std::ratio<3, 2>>;
+    using p3 = list<std::ratio<1, 2>, std::ratio<9>, std::ratio<79>, std::ratio<123,123>, std::ratio<0>, std::ratio<-1>>;
+
+    printf("p2 + p3 = %s\n", type_name<polynomial::add<p2, p3>>().c_str());
+    printf("p3 + p2 = %s\n", type_name<polynomial::add<p3, p2>>().c_str());
+    
+    using p4 = list<std::ratio<-42>, std::ratio<0>, std::ratio<-12>, std::ratio<1>>;
+    using p5 = list<std::ratio<-3>, std::ratio<1>>;
+    using p6 = list<std::ratio<-3>, std::ratio<1>, std::ratio<1>>;
+    using p7 = list<std::ratio<-7>, std::ratio<0>, std::ratio<5>, std::ratio<6>>;
+    using p8 = list<std::ratio<-1>, std::ratio<-2>, std::ratio<3>>;
+
+    printf("p4 = %s\n", type_name<p4>().c_str());
+    printf("p5 = %s\n", type_name<p5>().c_str());
+    printf("p6 = %s\n", type_name<p6>().c_str());
+    printf("p7 = %s\n", type_name<p7>().c_str());
+    printf("p8 = %s\n", type_name<p8>().c_str());
+
+    printf("p4 * p5 == %s\n", type_name<polynomial::multiply<p4, p5>>().c_str());
+    printf("p4 * p6 == %s\n", type_name<polynomial::multiply<p4, p6>>().c_str());
+    printf("p4 * p7 == %s\n", type_name<polynomial::multiply<p4, p7>>().c_str());
+
+    printf("replicate<std::integral_constant<3>, std::ratio<1,2>> = %s\n", type_name<replicate<std::integral_constant<unsigned int, 3>, std::ratio<1,2>>>().c_str());
+
+    {
+        using qr = polynomial::quo_rem<p4, p5>;
+        printf("p4 / p5 == %s\n", type_name<qr>().c_str());
+    }
+
+    {
+        using qr = polynomial::quo_rem<p4, p6>;
+        printf("p4 / p6 == %s\n", type_name<qr>().c_str());
+    }
+
+    {
+        using qr = polynomial::quo_rem<p7, p8>;
+        printf("p7 / p8 == %s\n", type_name<qr>().c_str());
+    }
+
+    printf("p4(0) = %s\n", type_name<polynomial::evaluate<p4, std::ratio<0>>>().c_str());
+    printf("p4(1/2) = %s\n", type_name<polynomial::evaluate<p4, std::ratio<1,2>>>().c_str());
+    printf("p4(1) = %s\n", type_name<polynomial::evaluate<p4, std::ratio<1>>>().c_str());
+    printf("p4(3/2) = %s\n", type_name<polynomial::evaluate<p4, std::ratio<3,2>>>().c_str());
 }

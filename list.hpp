@@ -148,6 +148,16 @@ using tails = typename tails_aux<List>::type;
 
 //////////////////////////////////////////////////////////////////////////////
 
+template <typename T>
+struct reverse_func {
+    using type = reverse<T>;
+};
+
+template <typename List>
+using inits = reverse<map<reverse_func, tails<reverse<List>>>>;
+
+//////////////////////////////////////////////////////////////////////////////
+
 /* In Haskell:
  * append = flip $ foldr (:)
  */
@@ -185,6 +195,70 @@ using all = and_<map<Predicate, List>>;
 template <typename Predicate, typename List>
 using find = head<filter<Predicate, List>>;
 #endif
+
+//////////////////////////////////////////////////////////////////////////////
+
+template <template <typename, typename> class Op, typename L0, typename L1>
+struct zip_with_aux {
+    using type = cons< Op<head<L0>, head<L1>>
+                     , typename zip_with_aux<Op, tail<L0>, tail<L1>>::type>;
+};
+
+template <template <typename, typename> class Op, typename L0>
+struct zip_with_aux<Op, L0, list<>> {
+    using type = list<>;
+};
+
+template <template <typename, typename> class Op, typename L1>
+struct zip_with_aux<Op, list<>, L1> {
+    using type = list<>;
+};
+
+template <template <typename, typename> class Op>
+struct zip_with_aux<Op, list<>, list<>> {
+    using type = list<>;
+};
+
+template <template <typename, typename> class Op, typename L0, typename L1>
+using zip_with = typename zip_with_aux<Op, L0, L1>::type;
+
+//////////////////////////////////////////////////////////////////////////////
+
+template <unsigned int N, typename List>
+struct drop_aux : drop_aux<N-1, tail<List>> { };
+
+template <typename List>
+struct drop_aux<0, List> {
+    using type = List;
+};
+
+template <unsigned int N>
+struct drop_aux<N, list<>> {
+    using type = list<>;
+};
+
+template <>
+struct drop_aux<0, list<>> {
+    using type = list<>;
+};
+
+template <typename N, typename List>
+using drop = typename drop_aux<N::value, List>::type;
+
+//////////////////////////////////////////////////////////////////////////////
+
+template <unsigned int N, typename T>
+struct replicate_aux {
+    using type = cons<T, typename replicate_aux<N-1, T>::type>;
+};
+
+template <typename T>
+struct replicate_aux<0, T> {
+    using type = list<>;
+};
+
+template <typename N, typename T>
+using replicate = typename replicate_aux<N::value, T>::type;
 
 //////////////////////////////////////////////////////////////////////////////
 
