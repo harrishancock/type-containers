@@ -1,3 +1,4 @@
+#include "lambda2.hpp"
 #include "list.hpp"
 #include "type_name.hpp"
 #include "polynomial.hpp"
@@ -31,6 +32,16 @@ void write (T t) {
 
     std::cout << static_cast<to_type>(t) << " << " << t << '\n';
 }
+
+template <typename A, typename B>
+struct plus {
+    using type = std::ratio_add<A, B>;
+};
+
+template <typename A, typename B, typename C>
+struct foo {
+    using type = typename lambda<plus<A, _1>>::type;
+};
 
 int main () {
     using v = list<int, char, double>;
@@ -205,4 +216,25 @@ int main () {
     printf("p4(1/2) = %s\n", type_name<polynomial::evaluate<p4, std::ratio<1,2>>>().c_str());
     printf("p4(1) = %s\n", type_name<polynomial::evaluate<p4, std::ratio<1>>>().c_str());
     printf("p4(3/2) = %s\n", type_name<polynomial::evaluate<p4, std::ratio<3,2>>>().c_str());
+
+#ifdef TYPE_CONTAINERS_LAMBDA_HPP
+    using f = lambda<foo<_2, wchar_t, _1>>;
+
+    printf("apply<f, void, int> == %s\n", type_name<apply<f, void, int>>().c_str());
+
+    using plus_one = lambda<plus<_1, std::ratio<1>>>;
+
+    printf("apply<plus_one, std::ratio<2>>::type == %s\n",
+            type_name<typename apply<plus_one, std::ratio<2>>::type>().c_str());
+
+#elif defined(TYPE_CONTAINERS_LAMBDA2_HPP)
+    using f = typename lambda<foo<_2, wchar_t, _1>>::type;
+
+    printf("      f             == %s\n", type_name<f>().c_str());
+    printf("apply<f>            == %s\n", type_name<typename apply<f>::type>().c_str());
+    printf("apply<f, void>      == %s\n", type_name<typename apply<f, void>::type>().c_str());
+    printf("apply<f, void, std::ratio<2>>                == %s\n", type_name<typename apply<f, void, std::ratio<2>>::type>().c_str());
+    printf("apply<f, void, std::ratio<2>, std::ratio<3>> == %s\n", type_name<typename apply<f, void, std::ratio<2>, std::ratio<3>>::type>().c_str());
+    printf("apply<apply<f, void, std::ratio<2>>::type, std::ratio<3>> == %s\n", type_name<typename apply<typename apply<f, void, std::ratio<2>>::type, std::ratio<3>>::type>().c_str());
+#endif
 }
