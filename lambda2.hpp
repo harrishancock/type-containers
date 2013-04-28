@@ -1,10 +1,9 @@
 #ifndef TYPE_CONTAINERS_LAMBDA2_HPP
 #define TYPE_CONTAINERS_LAMBDA2_HPP
 
-#include <type_traits>
+#include "trivial.hpp"
 
-template <typename... List>
-struct pack { };
+#include <type_traits>
 
 template <int N>
 struct arg;
@@ -16,11 +15,6 @@ using _1 = arg<1>;
 using _2 = arg<2>;
 
 //////////////////////////////////////////////////////////////////////////////
-
-template <typename T>
-struct id {
-    using type = T;
-};
 
 template <unsigned int N, typename... List>
 struct get;
@@ -76,41 +70,6 @@ struct lambda<MF<Args...>> {
 };
 
 //////////////////////////////////////////////////////////////////////////////
-
-template <template <typename...> class T>
-struct has_apply_aux : std::true_type { };
-
-/**
- * True if parameter T has a nested class template apply, false otherwise.
- * TODO this is ugly, find a better way
- */
-template <typename T, typename Enable = void>
-struct has_apply : std::false_type { };
-
-template <typename T>
-struct has_apply<T,
-        typename std::enable_if<
-            has_apply_aux<T::template apply>::value
-        >::type> : std::true_type { };
-
-template <typename MFC, typename ListArgs, typename Enable = void>
-struct apply_impl : id<MFC> { };
-
-template <typename MFC, typename... Args>
-struct apply_impl<MFC, pack<Args...>,
-        typename std::enable_if<
-            has_apply<MFC>::value
-        >::type> {
-    using type = typename MFC::template apply<Args...>::type;
-};
-
-/**
- * Invoke a given metafunction class MFC with the given Args.
- */
-template <typename MFC, typename... Args>
-struct apply {
-    using type = typename apply_impl<MFC, pack<Args...>>::type;
-};
 
 template <typename MFC, typename... Args>
 struct apply_local : apply<MFC, Args...> { };
