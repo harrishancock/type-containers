@@ -255,7 +255,16 @@ struct div_mod : apply<div_mod_impl<typename LHS::tag>, LHS, RHS> {
 
 //////////////////////////////////////////////////////////////////////////////
 
+template <typename Tag>
+struct value_ctor;
+
 struct int_tag;
+
+template <>
+struct value_ctor<int_tag> {
+    template <int I>
+    using apply = int_<I>;
+};
 
 template <int I>
 struct int_ : ::std::integral_constant<int, I> {
