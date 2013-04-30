@@ -1,3 +1,4 @@
+#include "num.hpp"
 #include "lambda2.hpp"
 #include "list.hpp"
 #include "type_name.hpp"
@@ -237,4 +238,66 @@ int main () {
     printf("apply<f, void, std::ratio<2>, std::ratio<3>> == %s\n", type_name<typename apply<f, void, std::ratio<2>, std::ratio<3>>::type>().c_str());
     printf("apply<apply<f, void, std::ratio<2>>::type, std::ratio<3>> == %s\n", type_name<typename apply<typename apply<f, void, std::ratio<2>>::type, std::ratio<3>>::type>().c_str());
 #endif
+
+    using i5 = int_<5>;
+    using im5 = typename num::negate<i5>::type;
+    using i4 = int_<4>;
+    using im4 = typename num::negate<i4>::type;
+    using i0 = int_<0>;
+
+    printf("i5  = %s\n", type_name<i5>().c_str());
+    printf("im5 = %s\n", type_name<im5>().c_str());
+    printf("i4  = %s\n", type_name<i4>().c_str());
+    printf("im4 = %s\n", type_name<im4>().c_str());
+
+    printf("i5  + i0  = %s\n", type_name<typename num::add<i5, i0>::type>().c_str());
+    printf("i5  + i4  = %s\n", type_name<typename num::add<i5, i4>::type>().c_str());
+    printf("im5 + i4  = %s\n", type_name<typename num::add<im5, i4>::type>().c_str());
+    printf("i5  + im4 = %s\n", type_name<typename num::add<i5, im4>::type>().c_str());
+    printf("im5 + im4 = %s\n", type_name<typename num::add<im5, im4>::type>().c_str());
+
+    printf("i5  * i0  = %s\n", type_name<typename num::add<i5, i0>::type>().c_str());
+    printf("i5  * i4  = %s\n", type_name<typename num::multiply<i5, i4>::type>().c_str());
+    printf("im5 * i4  = %s\n", type_name<typename num::multiply<im5, i4>::type>().c_str());
+    printf("i5  * im4 = %s\n", type_name<typename num::multiply<i5, im4>::type>().c_str());
+    printf("im5 * im4 = %s\n", type_name<typename num::multiply<im5, im4>::type>().c_str());
+
+    printf("i5  - i0  = %s\n", type_name<typename num::add<i5, i0>::type>().c_str());
+    printf("i5  - i4  = %s\n", type_name<typename num::subtract<i5, i4>::type>().c_str());
+    printf("im5 - i4  = %s\n", type_name<typename num::subtract<im5, i4>::type>().c_str());
+    printf("i5  - im4 = %s\n", type_name<typename num::subtract<i5, im4>::type>().c_str());
+    printf("im5 - im4 = %s\n", type_name<typename num::subtract<im5, im4>::type>().c_str());
+
+    printf("abs(i0)  = %s\n", type_name<typename num::abs<i0>::type>().c_str());
+    printf("abs(i5)  = %s\n", type_name<typename num::abs<i5>::type>().c_str());
+    printf("abs(im5) = %s\n", type_name<typename num::abs<i5>::type>().c_str());
+
+    printf("signum(i0)  = %s\n", type_name<typename num::signum<i0>::type>().c_str());
+    printf("signum(i5)  = %s\n", type_name<typename num::signum<i5>::type>().c_str());
+    printf("signum(im5) = %s\n", type_name<typename num::signum<im5>::type>().c_str());
+
+    printf("i5 == i5 = %s\n", type_name<typename eq::eq<i5, i5>::type>().c_str());
+    printf("i5 == i0 = %s\n", type_name<typename eq::eq<i5, i0>::type>().c_str());
+    printf("i5 != i5 = %s\n", type_name<typename eq::neq<i5, i5>::type>().c_str());
+    printf("i5 != i0 = %s\n", type_name<typename eq::neq<i5, i0>::type>().c_str());
+
+    printf("quot(i5, i4)   = %s\n", type_name<typename integral::quot<i5, i4>::type>().c_str());
+    printf("quot(im5, i4)  = %s\n", type_name<typename integral::quot<im5, i4>::type>().c_str());
+    printf("quot(i5, im4)  = %s\n", type_name<typename integral::quot<i5, im4>::type>().c_str());
+    printf("quot(im5, im4) = %s\n", type_name<typename integral::quot<im5, im4>::type>().c_str());
+
+    printf("rem(i5, i4)   = %s\n", type_name<typename integral::rem<i5, i4>::type>().c_str());
+    printf("rem(im5, i4)  = %s\n", type_name<typename integral::rem<im5, i4>::type>().c_str());
+    printf("rem(i5, im4)  = %s\n", type_name<typename integral::rem<i5, im4>::type>().c_str());
+    printf("rem(im5, im4) = %s\n", type_name<typename integral::rem<im5, im4>::type>().c_str());
+
+    printf("div(i5, i4)   = %s\n", type_name<typename integral::div<i5, i4>::type>().c_str());
+    printf("div(im5, i4)  = %s\n", type_name<typename integral::div<im5, i4>::type>().c_str());
+    printf("div(i5, im4)  = %s\n", type_name<typename integral::div<i5, im4>::type>().c_str());
+    printf("div(im5, im4) = %s\n", type_name<typename integral::div<im5, im4>::type>().c_str());
+
+    printf("mod(i5, i4)   = %s\n", type_name<typename integral::mod<i5, i4>::type>().c_str());
+    printf("mod(im5, i4)  = %s\n", type_name<typename integral::mod<im5, i4>::type>().c_str());
+    printf("mod(i5, im4)  = %s\n", type_name<typename integral::mod<i5, im4>::type>().c_str());
+    printf("mod(im5, im4) = %s\n", type_name<typename integral::mod<im5, im4>::type>().c_str());
 }

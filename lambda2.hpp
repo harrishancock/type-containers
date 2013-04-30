@@ -123,7 +123,7 @@ struct dropapply<MFC, 0> : apply<MFC> { };
 
 template <template <typename...> class MF, typename... Exprs>
 struct pexpr<MF<Exprs...>> : id<pexpr<MF<Exprs...>>> {
-    static constexpr int numvars = count_vars<Exprs...>::value;
+    static constexpr unsigned int numvars = count_vars<Exprs...>::value;
 
     template <typename... Args>
     struct apply {

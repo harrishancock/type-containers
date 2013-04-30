@@ -27,10 +27,26 @@ struct value_ctor;
 
 //////////////////////////////////////////////////////////////////////////////
 
+template <typename Bool, typename Then, typename Else>
+struct if_;
+
+template <typename Then, typename Else>
+struct if_<true_, Then, Else> {
+    using type = Then;
+};
+
+template <typename Then, typename Else>
+struct if_<false_, Then, Else> {
+    using type = Else;
+};
+
+//////////////////////////////////////////////////////////////////////////////
+
 struct bool_tag;
 
 template <bool X>
-struct bool_ : ::std::integral_constant<bool, X> {
+struct bool_ {
+    static constexpr bool value = X;
     using tag = bool_tag;
     using type = bool_<X>;
 };
@@ -43,24 +59,26 @@ struct not_ : bool_<!Bool::value> { };
 
 //////////////////////////////////////////////////////////////////////////////
 
+namespace num {
+
 /* Num tag class */
 
-template <typename LHS, typename RHS, typename Tag = LHS::tag>
+template <typename LHS, typename RHS, typename Tag = typename LHS::tag>
 struct add;
 
-template <typename LHS, typename RHS, typename Tag = LHS::tag>
+template <typename LHS, typename RHS, typename Tag = typename LHS::tag>
 struct multiply;
 
-template <typename LHS, typename RHS, typename Tag = LHS::tag>
+template <typename LHS, typename RHS, typename Tag = typename LHS::tag>
 struct subtract;
 
-template <typename T, typename Tag = T::tag>
+template <typename T, typename Tag = typename T::tag>
 struct negate;
 
-template <typename T, typename Tag = T::tag>
+template <typename T, typename Tag = typename T::tag>
 struct abs;
 
-template <typename T, typename Tag = T::tag>
+template <typename T, typename Tag = typename T::tag>
 struct signum;
 
 /* Default implementations */
@@ -71,14 +89,18 @@ struct subtract : add<LHS, typename negate<RHS>::type> { };
 template <typename T, typename Tag>
 struct negate : subtract<typename subtract<T, T>::type, T> { };
 
+} // namespace num
+
 //////////////////////////////////////////////////////////////////////////////
+
+namespace eq {
 
 /* Eq tag class */
 
-template <typename LHS, typename RHS, typename Tag = LHS::tag>
+template <typename LHS, typename RHS, typename Tag = typename LHS::tag>
 struct eq;
 
-template <typename LHS, typename RHS, typename Tag = LHS::tag>
+template <typename LHS, typename RHS, typename Tag = typename LHS::tag>
 struct neq;
 
 /* Default implementations */
@@ -89,26 +111,30 @@ struct eq : not_<typename neq<LHS, RHS>::type> { };
 template <typename LHS, typename RHS, typename Tag>
 struct neq : not_<typename eq<LHS, RHS>::type> { };
 
+} // namespace eq
+
 //////////////////////////////////////////////////////////////////////////////
+
+namespace integral {
 
 /* Integral tag class */
 
-template <typename LHS, typename RHS, typename Tag = LHS::tag>
+template <typename LHS, typename RHS, typename Tag = typename LHS::tag>
 struct quot;
 
-template <typename LHS, typename RHS, typename Tag = LHS::tag>
+template <typename LHS, typename RHS, typename Tag = typename LHS::tag>
 struct rem;
 
-template <typename LHS, typename RHS, typename Tag = LHS::tag>
+template <typename LHS, typename RHS, typename Tag = typename LHS::tag>
 struct div;
 
-template <typename LHS, typename RHS, typename Tag = LHS::tag>
+template <typename LHS, typename RHS, typename Tag = typename LHS::tag>
 struct mod;
 
-template <typename LHS, typename RHS, typename Tag = LHS::tag>
+template <typename LHS, typename RHS, typename Tag = typename LHS::tag>
 struct quot_rem;
 
-template <typename LHS, typename RHS, typename Tag = LHS::tag>
+template <typename LHS, typename RHS, typename Tag = typename LHS::tag>
 struct div_mod;
 
 /* Default implementations */
@@ -131,14 +157,17 @@ struct div_mod {
     using q = typename fst<qr>::type;
     using r = typename snd<qr>::type;
     using type = typename ::std::conditional<
-        typename eq<
-                typename signum<LHS>::type,
-                typename negate<typename signum<RHS>::type>::type
+        eq::eq<
+                typename num::signum<LHS>::type,
+                typename num::negate<typename num::signum<RHS>::type>::type
         >::type::value,
-        tuple<typename pred<q>::type, typename add<r, RHS>::type>,
+        tuple2<typename num::subtract<q, typename value_ctor<Tag>::template apply<1>::type>::type,
+               typename num::add<r, RHS>::type>,
         qr
     >::type;
 };
+
+} // namespace integral
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -146,17 +175,20 @@ struct div_mod {
 
 struct int_tag;
 
+template <int I>
+struct int_ {
+    static constexpr int value = I;
+    using tag = int_tag;
+    using type = int_<I>;
+};
+
 template <>
 struct value_ctor<int_tag> {
     template <int I>
     using apply = int_<I>;
 };
 
-template <int I>
-struct int_ : ::std::integral_constant<int, I> {
-    using tag = int_tag;
-    using type = int_<I>;
-};
+namespace num {
 
 /* Num instance */
 
@@ -167,27 +199,37 @@ template <typename LHS, typename RHS>
 struct multiply<LHS, RHS, int_tag> : int_<LHS::value * RHS::value> { };
 
 template <typename T>
-struct negate<LHS, RHS, int_tag> : int_<-T::value> { };
+struct negate<T, int_tag> : int_<-T::value> { };
 
 template <typename T>
 struct abs<T, int_tag> : int_<(T::value < 0 ? -T::value : T::value)> { };
 
 template <typename T>
-struct signum<T, int_tag> : int_<(T::value / abs<T>::value)> { };
+struct signum<T, int_tag> : int_<(T::value / (T::value ? abs<T>::value : 1))> { };
+
+} // namespace num
+
+namespace eq {
 
 /* Eq instance */
 
 template <typename LHS, typename RHS>
 struct eq<LHS, RHS, int_tag> : bool_<(LHS::value == RHS::value)> { };
 
+} // namespace eq
+
+namespace integral {
+
 /* Integral instance */
 
 template <typename LHS, typename RHS>
 struct quot_rem<LHS, RHS, int_tag> {
-    using q = LHS::value / RHS::value;
-    using r = LHS::value % abs<RHS>::value;
-    using type = tuple<q, r>;
+    using q = int_<LHS::value / RHS::value>;
+    using r = int_<LHS::value % num::abs<RHS>::value>;
+    using type = tuple2<q, r>;
 };
+
+} // namespace integral
 
 //////////////////////////////////////////////////////////////////////////////
 
