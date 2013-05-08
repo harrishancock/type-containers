@@ -292,6 +292,7 @@ int main () {
     printf("rem(im5, im4) = %s\n", type_name<typename integral::rem<im5, im4>::type>().c_str());
 
     printf("div(i5, i4)   = %s\n", type_name<typename integral::div<i5, i4>::type>().c_str());
+#if 0
     printf("div(im5, i4)  = %s\n", type_name<typename integral::div<im5, i4>::type>().c_str());
     printf("div(i5, im4)  = %s\n", type_name<typename integral::div<i5, im4>::type>().c_str());
     printf("div(im5, im4) = %s\n", type_name<typename integral::div<im5, im4>::type>().c_str());
@@ -300,4 +301,5 @@ int main () {
     printf("mod(im5, i4)  = %s\n", type_name<typename integral::mod<im5, i4>::type>().c_str());
     printf("mod(i5, im4)  = %s\n", type_name<typename integral::mod<i5, im4>::type>().c_str());
     printf("mod(im5, im4) = %s\n", type_name<typename integral::mod<im5, im4>::type>().c_str());
+#endif
 }
