@@ -1,22 +1,11 @@
+/* DEPRECATED */
+
 #ifndef TYPE_CONTAINERS_NUM_HPP
 #define TYPE_CONTAINERS_NUM_HPP
 
+#include "bool.hpp"
+
 #include <type_traits>
-
-struct bool_tag;
-
-template <bool X>
-struct bool_ {
-    static constexpr bool value = X;
-    using tag = bool_tag;
-    using type = bool_<X>;
-};
-
-using true_ = bool_<true>;
-using false_ = bool_<false>;
-
-template <typename Bool>
-struct not_ : bool_<!Bool::value> { };
 
 //////////////////////////////////////////////////////////////////////////////
 

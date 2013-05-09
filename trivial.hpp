@@ -1,7 +1,9 @@
+/* DEPRECATED */
+
 #ifndef TYPE_CONTAINERS_TRIVIAL_HPP
 #define TYPE_CONTAINERS_TRIVIAL_HPP
 
-#include "list.hpp"
+#include "pack.hpp"
 
 //////////////////////////////////////////////////////////////////////////////
 

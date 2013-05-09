@@ -1,7 +1,9 @@
+/* DEPRECATED */
+
 #ifndef TYPE_CONTAINERS_POLYNOMIAL_HPP
 #define TYPE_CONTAINERS_POLYNOMIAL_HPP
 
-#include "list.hpp"
+#include "pack.hpp"
 
 #include <ratio>
 
