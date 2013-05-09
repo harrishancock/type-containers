@@ -1,18 +1,20 @@
-#include "num.hpp"
-#include "lambda2.hpp"
-#include "list.hpp"
+//#include "num.hpp"
+//#include "lambda2.hpp"
+#include "variadic.hpp"
 #include "type_name.hpp"
-#include "polynomial.hpp"
+//#include "polynomial.hpp"
 
 #include <cstdio>
 #include <limits>
 #include <iostream>
 
+using namespace variadic;
+
 //////////////////////////////////////////////////////////////////////////////
 
 template <typename Casts, typename T>
 void write (T t) {
-    using to_type = at<Casts, T, T>;
+    using to_type = typename at<Casts, T, T>::type;
 
     printf("static_cast<%s>(%s)\n", type_name<to_type>().c_str(), type_name<T>().c_str());
 
@@ -34,6 +36,7 @@ void write (T t) {
     std::cout << static_cast<to_type>(t) << " << " << t << '\n';
 }
 
+#if 0
 template <typename A, typename B>
 struct plus {
     using type = std::ratio_add<A, B>;
@@ -43,17 +46,24 @@ template <typename A, typename B, typename C>
 struct foo {
     using type = typename lambda<plus<A, _1>>::type;
 };
+#endif
+
+struct is_void {
+    template <typename X>
+    struct apply : std::is_void<X> { };
+};
+
 
 int main () {
-    using v = list<int, char, double>;
+    using v = pack<int, char, double>;
 
     {
-        using h0 = head<v>;
-        using t0 = tail<v>;
-        using h1 = head<t0>;
-        using t1 = tail<t0>;
-        using h2 = head<t1>;
-        using t2 = tail<t1>;
+        using h0 = typename head<v>::type;
+        using t0 = typename tail<v>::type;
+        using h1 = typename head<t0>::type;
+        using t1 = typename tail<t0>::type;
+        using h2 = typename head<t1>::type;
+        using t2 = typename tail<t1>::type;
 
         printf("v = %s\n", type_name<v>().c_str());
         printf("%s : %s\n", type_name<h0>().c_str(), type_name<t0>().c_str());
@@ -62,23 +72,23 @@ int main () {
 
         printf("%d\n", length<v>::value);
 
-        printf("%d ints\n", count_if<v, equals<int>::func>::value);
-        printf("%d char\n", count_if<v, equals<char>::func>::value);
-        printf("%d doubles\n", count_if<v, equals<double>::func>::value);
-        printf("%d bools\n", count_if<v, equals<bool>::func>::value);
+        printf("%d ints\n", count_if<v, equals<int>>::value);
+        printf("%d char\n", count_if<v, equals<char>>::value);
+        printf("%d doubles\n", count_if<v, equals<double>>::value);
+        printf("%d bools\n", count_if<v, equals<bool>>::value);
     }
 
-    using vv = cons<void, v>;
+    using vv = typename cons<void, v>::type;
 
     {
-        using h0 = head<vv>;
-        using t0 = tail<vv>;
-        using h1 = head<t0>;
-        using t1 = tail<t0>;
-        using h2 = head<t1>;
-        using t2 = tail<t1>;
-        using h3 = head<t2>;
-        using t3 = tail<t2>;
+        using h0 = typename head<vv>::type;
+        using t0 = typename tail<vv>::type;
+        using h1 = typename head<t0>::type;
+        using t1 = typename tail<t0>::type;
+        using h2 = typename head<t1>::type;
+        using t2 = typename tail<t1>::type;
+        using h3 = typename head<t2>::type;
+        using t3 = typename tail<t2>::type;
 
         printf("vv = %s\n", type_name<vv>().c_str());
         printf("%s : %s\n", type_name<h0>().c_str(), type_name<t0>().c_str());
@@ -88,20 +98,20 @@ int main () {
 
         printf("%d\n", length<vv>::value);
 
-        printf("%d ints\n", count_if<vv, equals<int>::func>::value);
-        printf("%d char\n", count_if<vv, equals<char>::func>::value);
-        printf("%d doubles\n", count_if<vv, equals<double>::func>::value);
-        printf("%d bools\n", count_if<vv, equals<bool>::func>::value);
+        printf("%d ints\n", count_if<vv, equals<int>>::value);
+        printf("%d char\n", count_if<vv, equals<char>>::value);
+        printf("%d doubles\n", count_if<vv, equals<double>>::value);
+        printf("%d bools\n", count_if<vv, equals<bool>>::value);
 
-        printf("map<is_void, vv> = %s\n", type_name<map<std::is_void, vv>>().c_str());
+        printf("map<is_void, vv> = %s\n", type_name<typename map<is_void, vv>::type>().c_str());
 
-        using ts = tails<vv>;
+        using ts = typename tails<vv>::type;
 
-        using tail0 = head<ts>;
-        using tail1 = head<tail<ts>>;
-        using tail2 = head<tail<tail<ts>>>;
-        using tail3 = head<tail<tail<tail<ts>>>>;
-        using tail4 = head<tail<tail<tail<tail<ts>>>>>;
+        using tail0 = typename head<ts>::type;
+        using tail1 = typename head<typename tail<ts>::type>::type;
+        using tail2 = typename head<typename tail<typename tail<ts>::type>::type>::type;
+        using tail3 = typename head<typename tail<typename tail<typename tail<ts>::type>::type>::type>::type;
+        using tail4 = typename head<typename tail<typename tail<typename tail<typename tail<ts>::type>::type>::type>::type>::type;
 
         printf("tail0 = %s\n", type_name<tail0>().c_str());
         printf("tail1 = %s\n", type_name<tail1>().c_str());
@@ -109,13 +119,13 @@ int main () {
         printf("tail3 = %s\n", type_name<tail3>().c_str());
         printf("tail4 = %s\n", type_name<tail4>().c_str());
 
-        using is = inits<vv>;
+        using is = typename inits<vv>::type;
 
-        using init0 = head<is>;
-        using init1 = head<tail<is>>;
-        using init2 = head<tail<tail<is>>>;
-        using init3 = head<tail<tail<tail<is>>>>;
-        using init4 = head<tail<tail<tail<tail<is>>>>>;
+        using init0 = typename head<is>::type;
+        using init1 = typename head<typename tail<is>::type>::type;
+        using init2 = typename head<typename tail<typename tail<is>::type>::type>::type;
+        using init3 = typename head<typename tail<typename tail<typename tail<is>::type>::type>::type>::type;
+        using init4 = typename head<typename tail<typename tail<typename tail<typename tail<is>::type>::type>::type>::type>::type;
 
         printf("init0 = %s\n", type_name<init0>().c_str());
         printf("init1 = %s\n", type_name<init1>().c_str());
@@ -124,34 +134,36 @@ int main () {
         printf("init4 = %s\n", type_name<init4>().c_str());
     }
 
-    using vvv = append<v, vv>;
+    using vvv = typename append<v, vv>::type;
 
     printf("vvv = %s\n", type_name<vvv>().c_str());
-    printf("reverse<vvv> = %s\n", type_name<reverse<vvv>>().c_str());
-    printf("head<vvv> = %s\n", type_name<head<vvv>>().c_str());
-    printf("last<vvv> = %s\n", type_name<last<vvv>>().c_str());
-    printf("tail<vvv> = %s\n", type_name<tail<vvv>>().c_str());
-    printf("init<vvv> = %s\n", type_name<init<vvv>>().c_str());
+    printf("reverse<vvv> = %s\n", type_name<typename reverse<vvv>::type>().c_str());
+    printf("head<vvv> = %s\n", type_name<typename head<vvv>::type>().c_str());
+    printf("last<vvv> = %s\n", type_name<typename last<vvv>::type>().c_str());
+    printf("tail<vvv> = %s\n", type_name<typename tail<vvv>::type>().c_str());
+    printf("init<vvv> = %s\n", type_name<typename init<vvv>::type>().c_str());
 
-    using m = list<pair<bool, char>, pair<wchar_t, char16_t>, pair<char32_t, signed char>>;
+    using m = pack<pair<bool, char>, pair<wchar_t, char16_t>, pair<char32_t, signed char>>;
 
-    static_assert(is_association_list<m>::value, "m is not an association list");
+#if 0
+    static_assert(is_association_pack<m>::value, "m is not an association pack");
 
-    using mm = cons<void, m>;
+    using mm = typename cons<void, m>::type;
 
-    //static_assert(is_association_list<mm>::value, "mm is not an association list");
+    //static_assert(is_association_pack<mm>::value, "mm is not an association pack");
+#endif
 
     printf("m = %s\n", type_name<m>().c_str());
-    printf("%d bool keys\n", count_if<m, key_equals<bool>::func>::value);
-    printf("%d wchar_t keys\n", count_if<m, key_equals<wchar_t>::func>::value);
-    printf("%d char32_t keys\n", count_if<m, key_equals<char32_t>::func>::value);
-    printf("%d unsigned char keys\n", count_if<m, key_equals<unsigned char>::func>::value);
+    printf("%d bool keys\n", count_if<m, key_equals<bool>>::value);
+    printf("%d wchar_t keys\n", count_if<m, key_equals<wchar_t>>::value);
+    printf("%d char32_t keys\n", count_if<m, key_equals<char32_t>>::value);
+    printf("%d unsigned char keys\n", count_if<m, key_equals<unsigned char>>::value);
 
-    printf("m[bool] ==\t%s\n", type_name<at<m, bool>>().c_str());
-    printf("m[wchar_t] ==\t%s\n", type_name<at<m, wchar_t>>().c_str());
-    printf("m[char32_t] ==\t%s\n", type_name<at<m, char32_t>>().c_str());
+    printf("m[bool] ==\t%s\n", type_name<typename at<m, bool>::type>().c_str());
+    printf("m[wchar_t] ==\t%s\n", type_name<typename at<m, wchar_t>::type>().c_str());
+    printf("m[char32_t] ==\t%s\n", type_name<typename at<m, char32_t>::type>().c_str());
 
-    using casting_policy = list< pair<bool, char>
+    using casting_policy = pack< pair<bool, char>
                                    , pair<int, int16_t>
                                    , pair<unsigned int, uint16_t>
                                    , pair<double, float>>;
@@ -164,27 +176,28 @@ int main () {
     write<casting_policy>(3.14159678243234);
 
     printf("length<casting_policy> == %d\n", length<casting_policy>::value);
+#if 0
     printf("degree<casting_policy> == %d\n", polynomial::degree<casting_policy>::value);
 
-    using zero_length = list<>;
+    using zero_length = pack<>;
     printf("length<zero_length> == %d\n", length<zero_length>::value);
     printf("degree<zero_length> == %d\n", polynomial::degree<zero_length>::value);
 
-    using p0 = list<std::ratio<1>, std::ratio<2>, std::ratio<3>>;
+    using p0 = pack<std::ratio<1>, std::ratio<2>, std::ratio<3>>;
     using p1 = reverse<p0>;
     printf("p0 + p1 = %s\n", type_name<polynomial::add<p0, p1>>().c_str());
 
-    using p2 = list<std::ratio<3, 2>>;
-    using p3 = list<std::ratio<1, 2>, std::ratio<9>, std::ratio<79>, std::ratio<123,123>, std::ratio<0>, std::ratio<-1>>;
+    using p2 = pack<std::ratio<3, 2>>;
+    using p3 = pack<std::ratio<1, 2>, std::ratio<9>, std::ratio<79>, std::ratio<123,123>, std::ratio<0>, std::ratio<-1>>;
 
     printf("p2 + p3 = %s\n", type_name<polynomial::add<p2, p3>>().c_str());
     printf("p3 + p2 = %s\n", type_name<polynomial::add<p3, p2>>().c_str());
     
-    using p4 = list<std::ratio<-42>, std::ratio<0>, std::ratio<-12>, std::ratio<1>>;
-    using p5 = list<std::ratio<-3>, std::ratio<1>>;
-    using p6 = list<std::ratio<-3>, std::ratio<1>, std::ratio<1>>;
-    using p7 = list<std::ratio<-7>, std::ratio<0>, std::ratio<5>, std::ratio<6>>;
-    using p8 = list<std::ratio<-1>, std::ratio<-2>, std::ratio<3>>;
+    using p4 = pack<std::ratio<-42>, std::ratio<0>, std::ratio<-12>, std::ratio<1>>;
+    using p5 = pack<std::ratio<-3>, std::ratio<1>>;
+    using p6 = pack<std::ratio<-3>, std::ratio<1>, std::ratio<1>>;
+    using p7 = pack<std::ratio<-7>, std::ratio<0>, std::ratio<5>, std::ratio<6>>;
+    using p8 = pack<std::ratio<-1>, std::ratio<-2>, std::ratio<3>>;
 
     printf("p4 = %s\n", type_name<p4>().c_str());
     printf("p5 = %s\n", type_name<p5>().c_str());
@@ -301,5 +314,6 @@ int main () {
     printf("mod(im5, i4)  = %s\n", type_name<typename integral::mod<im5, i4>::type>().c_str());
     printf("mod(i5, im4)  = %s\n", type_name<typename integral::mod<i5, im4>::type>().c_str());
     printf("mod(im5, im4) = %s\n", type_name<typename integral::mod<im5, im4>::type>().c_str());
+#endif
 #endif
 }
