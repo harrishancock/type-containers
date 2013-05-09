@@ -7,8 +7,6 @@ struct pack;
 template <typename Head, typename... Tail>
 struct head;
 
-template <typename Head, typename... Tail>
-struct head<pack
 template <typename X, typename Pack>
 struct cons;
 
